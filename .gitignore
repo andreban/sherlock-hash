@@ -1,0 +1,10 @@
+
+*.class
+
+*.xml
+
+*.html
+
+*.iml
+
+sherlock-hash.iml
