@@ -11,11 +11,11 @@ public enum SherlockHash {
 
     INSTANCE;
 
-    private Map<String, BinaryPack> mapPerBinary = new TreeMap<String, BinaryPack>();
+    private Map<String, BinaryPack> mapPerBinary = new TreeMap<>();
 
     private static class BinaryPack {
         private final long timeStamp;
-        private Map<String, File> map = new TreeMap();
+        private Map<String, File> map = new TreeMap<>();
 
         public BinaryPack(long timeStamp) {
             this.timeStamp = timeStamp;
@@ -24,40 +24,29 @@ public enum SherlockHash {
 
     public File getFileFromZipStream(File binaryFile, ZipInputStream zipInputStream, String fName,
                                      String ext) throws IOException {
-        if (mapPerBinary.containsKey(binaryFile.getCanonicalPath())) {
-            BinaryPack pack = mapPerBinary.get(binaryFile.getCanonicalPath());
-
-            if(pack.timeStamp != binaryFile.lastModified()) {
-                mapPerBinary.put(binaryFile.getCanonicalPath(),
-                        new BinaryPack(binaryFile.lastModified()));
-            }
-        }
-        else {
-            mapPerBinary.put(binaryFile.getCanonicalPath(),
-                    new BinaryPack(binaryFile.lastModified()));
+        BinaryPack pack = mapPerBinary.get(binaryFile.getCanonicalPath());
+        if (pack == null || pack.timeStamp != binaryFile.lastModified()) {
+            pack = new BinaryPack(binaryFile.lastModified());
+            mapPerBinary.put(binaryFile.getCanonicalPath(), pack);
         }
 
         String innerFileName = fName + ext;
-        BinaryPack pack = mapPerBinary.get(binaryFile.getCanonicalPath());
+        File file = pack.map.get(innerFileName);
 
-        if (pack.map.containsKey(innerFileName)) {
-            return pack.map.get(innerFileName);
+        if (file != null) {
+            return file;
         }
 
-        File file = File.createTempFile(fName, ext);
+        file = File.createTempFile(fName, ext);
         file.deleteOnExit();
-
-        FileOutputStream fos =
-                new FileOutputStream(file);
-        byte[] bytes = new byte[1024];
-        int length;
-        while ((length = zipInputStream.read(bytes)) >= 0) {
-            fos.write(bytes, 0, length);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            byte[] bytes = new byte[1024];
+            int length;
+            while ((length = zipInputStream.read(bytes)) >= 0) {
+                fos.write(bytes, 0, length);
+            }
+            pack.map.put(innerFileName, file);
         }
-
-        fos.close();
-
-        pack.map.put(innerFileName, file);
 
         return file;
     }
